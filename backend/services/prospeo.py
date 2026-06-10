@@ -50,8 +50,8 @@ class ProspeoClient:
                     )
                     
                     if response.status_code == 404:
-                        logger.info("Domain not found in Prospeo", domain=domain)
-                        return []
+                        logger.info("Domain not found in Prospeo — using mock data", domain=domain)
+                        return self._get_mock_data(domain)
                         
                     if response.status_code == 429:
                         wait = 60 * (attempt + 1)
