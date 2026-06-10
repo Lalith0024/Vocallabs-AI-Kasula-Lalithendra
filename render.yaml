@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: subspace-backend
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: DATABASE_URL
+        fromDatabase:
+          name: subspace-db
+          property: connectionString
+      - key: DEBUG
+        value: "False"
+      # These will be prompted during deployment
+      - key: OCEAN_IO_API_KEY
+        sync: false
+      - key: PROSPEO_API_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SENDER_EMAIL
+        sync: false
+      - key: SENDER_NAME
+        value: "Outreach Team"
+
+databases:
+  - name: subspace-db
+    databaseName: subspace
+    user: subspace_user
+    plan: free
