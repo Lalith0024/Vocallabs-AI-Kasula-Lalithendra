@@ -26,8 +26,8 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center group-hover:bg-gray-700 transition-colors">
-                <Zap className="w-4 h-4 text-white" />
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden">
+                <img src="/logo.png" alt="SubSpace Logo" className="w-full h-full object-cover" />
               </div>
               <span className="font-bold text-gray-900 text-sm tracking-tight hidden sm:block">SubSpace</span>
             </Link>
