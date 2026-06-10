@@ -29,7 +29,7 @@ export default function Navbar() {
               <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center group-hover:bg-gray-700 transition-colors">
                 <Zap className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-gray-900 text-sm tracking-tight hidden sm:block">Vocallabs</span>
+              <span className="font-bold text-gray-900 text-sm tracking-tight hidden sm:block">SubSpace</span>
             </Link>
 
             {/* Mode badge */}
