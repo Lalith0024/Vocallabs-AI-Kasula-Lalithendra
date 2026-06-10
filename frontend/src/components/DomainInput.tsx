@@ -51,7 +51,7 @@ export default function DomainInput({ onSubmit, isLoading }: DomainInputProps) {
             <Globe className="inline w-4 h-4 mr-1.5 text-gray-400" />
             Seed Domain
           </label>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={domain}
