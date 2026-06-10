@@ -2,7 +2,7 @@
 
 import httpx
 import asyncio
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 import structlog
 from uuid import UUID
 
@@ -30,26 +30,27 @@ class BrevoClient:
         if not self.api_key:
             # Mock successful send
             logger.info("Brevo API key missing. Mocking email send.", to=email_data.get("to"))
-            return {"messageId": f"<mock_{hash(str(email_data))}@mock-relay.brevo.com>"}
+            return {"messageId": f"<mock_{abs(hash(str(email_data)))}@mock-relay.brevo.com>"}
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            await _limiter.acquire()
-            
-            try:
-                response = await client.post(
-                    f"{self.base_url}/smtp/email",
-                    json=email_data,
-                    headers=self.headers
-                )
-                
-                if response.status_code == 429:
-                    logger.warning("Brevo rate limit hit. Sleeping...")
-                    await asyncio.sleep(60)
+        MAX_RETRIES = 3
+        for attempt in range(MAX_RETRIES):
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                await _limiter.acquire()
+                try:
+                    response = await client.post(
+                        f"{self.base_url}/smtp/email",
+                        json=email_data,
+                        headers=self.headers
+                    )
+                    if response.status_code == 429:
+                        wait = 60 * (attempt + 1)  # exponential: 60, 120, 180
+                        logger.warning(f"Brevo rate limit hit. Sleeping {wait}s (attempt {attempt+1})")
+                        await asyncio.sleep(wait)
+                        continue  # re-issue the POST, not raise_for_status
                     response.raise_for_status()
-                    
-                response.raise_for_status()
-                return response.json()
-                
-            except httpx.HTTPError as e:
-                logger.error("Brevo API request failed", error=str(e))
-                raise e
+                    return response.json()
+                except httpx.HTTPStatusError as e:
+                    if attempt == MAX_RETRIES - 1:
+                        raise
+                    await asyncio.sleep(10)
+        raise RuntimeError("Brevo send_email: max retries exceeded")

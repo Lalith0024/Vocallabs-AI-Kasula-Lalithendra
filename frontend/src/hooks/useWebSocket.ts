@@ -25,13 +25,18 @@ export function useWebSocket(campaignId: string | null) {
         try {
           const parsed = JSON.parse(event.data);
           setData(parsed);
+          
+          if (parsed.status === 'completed' || parsed.status === 'failed') {
+            isClosed = true;
+            if (wsRef.current) wsRef.current.close();
+          }
         } catch (e) {
           console.error('Failed to parse websocket message', e);
         }
       };
 
       wsRef.current.onclose = () => {
-        if (isClosed) return; // Don't reconnect if intentionally closed on unmount
+        if (isClosed) return; // Don't reconnect if intentionally closed on unmount or terminal state
         // Auto-reconnect after 3s
         reconnectTimerRef.current = setTimeout(() => connect(), 3000);
       };

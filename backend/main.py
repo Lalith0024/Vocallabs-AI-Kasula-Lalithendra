@@ -26,6 +26,26 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
     
+    warnings = []
+    if not settings.OCEAN_IO_API_KEY:
+        warnings.append("OCEAN_IO_API_KEY not set — Stage 1 will use mock data")
+    if not settings.PROSPEO_API_KEY:
+        warnings.append("PROSPEO_API_KEY not set — Stage 2 will use mock data")
+    if not settings.EAZYREACH_API_KEY:
+        warnings.append("EAZYREACH_API_KEY not set — Stage 3 will use mock data")
+    if not settings.BREVO_API_KEY:
+        warnings.append("BREVO_API_KEY not set — Stage 4 will use mock data")
+    if settings.SENDER_EMAIL == "outreach@yourdomain.com":
+        warnings.append("SENDER_EMAIL is still the placeholder value — Brevo will reject sends")
+
+    for w in warnings:
+        logger.warning(f"[CONFIG] {w}")
+
+    if warnings:
+        logger.info(f"[CONFIG] {len(warnings)} config warning(s). Running in partial mock mode.")
+    else:
+        logger.info("[CONFIG] All API keys configured. Running in LIVE mode.")
+    
     yield
     
     logger.info("Shutting down FastAPI application")
@@ -54,7 +74,16 @@ app.include_router(webhooks_router, prefix="/api/webhooks", tags=["webhooks"])
 @app.get("/health", tags=["health"])
 async def health_check():
     """Simple health check endpoint."""
-    return {"status": "ok", "version": settings.APP_VERSION}
+    live_mode = all([
+        settings.OCEAN_IO_API_KEY,
+        settings.PROSPEO_API_KEY,
+        settings.BREVO_API_KEY,
+    ])
+    return {
+        "status": "ok",
+        "version": settings.APP_VERSION,
+        "live_mode": live_mode,
+    }
 
 if __name__ == "__main__":
     import uvicorn

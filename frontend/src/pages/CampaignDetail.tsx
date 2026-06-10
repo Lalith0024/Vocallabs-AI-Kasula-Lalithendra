@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCampaign } from '../hooks/useCampaign';
 import { ArrowLeft, Building2, Users, Mail, CheckCircle2, XCircle } from 'lucide-react';
@@ -5,7 +6,17 @@ import clsx from 'clsx';
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
-  const { campaign, companies, contacts, emails, loading } = useCampaign(id);
+  const { campaign, companies, contacts, emails, loading, refetch } = useCampaign(id);
+
+  useEffect(() => {
+    if (!campaign) return;
+    if (campaign.status !== 'completed' && campaign.status !== 'failed') {
+      const interval = setInterval(() => {
+        refetch();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [campaign?.status, refetch]);
 
   if (loading) {
     return (
@@ -65,6 +76,9 @@ export default function CampaignDetail() {
             </span>
           </div>
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+            {companies.length === 0 && !loading && (
+              <div className="text-sm text-slate-500 text-center py-8">No companies found yet.</div>
+            )}
             {companies.map(c => (
               <div key={c.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                 <div className="font-medium text-slate-200">{c.company_name || c.domain}</div>
@@ -89,6 +103,9 @@ export default function CampaignDetail() {
             </span>
           </div>
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+            {contacts.length === 0 && !loading && (
+              <div className="text-sm text-slate-500 text-center py-8">No contacts found yet.</div>
+            )}
             {contacts.map(c => (
               <div key={c.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                 <div className="font-medium text-slate-200">{c.full_name}</div>
@@ -110,6 +127,9 @@ export default function CampaignDetail() {
             </span>
           </div>
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+            {emails.length === 0 && !loading && (
+              <div className="text-sm text-slate-500 text-center py-8">No emails resolved yet.</div>
+            )}
             {emails.map(e => (
               <div key={e.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                 <div className="flex justify-between items-start">

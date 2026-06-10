@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { CampaignMetrics } from '../types';
-import { Send, X } from 'lucide-react';
+import { Send, X, ChevronDown, ChevronUp, Mail } from 'lucide-react';
 
 interface SummaryModalProps {
   metrics: CampaignMetrics;
@@ -10,13 +11,14 @@ interface SummaryModalProps {
 }
 
 export default function SummaryModal({ metrics, seedDomain, onApprove, onCancel, isLoading }: SummaryModalProps) {
+  const [showPreview, setShowPreview] = useState(false);
   const successRate = metrics.contacts_found 
     ? Math.round(((metrics.emails_resolved || 0) / metrics.contacts_found) * 100) 
     : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 shadow-2xl rounded-3xl max-w-2xl w-full overflow-hidden animate-[slideUp_0.3s_ease-out]">
+      <div className="bg-slate-900 border border-slate-700 shadow-2xl rounded-3xl max-w-2xl w-full overflow-hidden animate-slide-up">
         
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
           <h2 className="text-xl font-bold text-slate-100">Safety Checkpoint</h2>
@@ -31,7 +33,7 @@ export default function SummaryModal({ metrics, seedDomain, onApprove, onCancel,
             Review the results before initiating the email sequence.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
               <span className="block text-3xl font-bold text-slate-100 mb-1">{metrics.companies_found || 0}</span>
               <span className="text-xs text-slate-400 uppercase tracking-wider">Companies</span>
@@ -48,6 +50,31 @@ export default function SummaryModal({ metrics, seedDomain, onApprove, onCancel,
               <span className="block text-3xl font-bold text-slate-100 mb-1">{successRate}%</span>
               <span className="text-xs text-slate-400 uppercase tracking-wider">Match Rate</span>
             </div>
+          </div>
+
+          <div className="mb-8 border border-slate-700/50 rounded-xl overflow-hidden">
+            <button 
+              onClick={() => setShowPreview(!showPreview)}
+              className="w-full bg-slate-800/50 p-4 flex items-center justify-between text-slate-300 hover:bg-slate-800 transition-colors"
+            >
+              <div className="flex items-center space-x-2">
+                <Mail className="w-5 h-5 text-brand-400" />
+                <span className="font-medium">View Email Preview</span>
+              </div>
+              {showPreview ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </button>
+            
+            {showPreview && (
+              <div className="p-4 bg-slate-900 border-t border-slate-700/50 text-sm text-slate-400">
+                <p className="mb-2"><span className="text-slate-500">Subject:</span> Partnership Opportunity - {'{company_name}'} & {'{seed_domain}'}</p>
+                <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 font-serif leading-relaxed">
+                  <p>Hi {'{first_name}'},</p>
+                  <p className="mt-4">I came across {'{company_name}'} while researching companies in the {'{industry}'} space — impressive work you're doing there.</p>
+                  <p className="mt-4">I'm reaching out because we help companies like yours streamline recurring costs and subscription management at scale...</p>
+                  <p className="mt-4 text-slate-500 italic">(Preview truncated. Dynamic variables will be injected before sending.)</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex space-x-4">

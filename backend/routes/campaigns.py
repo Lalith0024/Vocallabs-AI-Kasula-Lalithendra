@@ -154,8 +154,17 @@ async def websocket_endpoint(websocket: WebSocket, campaign_id: UUID):
                         }, 
                         websocket
                     )
+                    
+                    if campaign.status in (CampaignStatus.COMPLETED.value, CampaignStatus.FAILED.value):
+                        break  # Stop polling — campaign is done
             
             await asyncio.sleep(2)
+            
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+        manager.disconnect(websocket, campaign_id)
             
     except WebSocketDisconnect:
         manager.disconnect(websocket, campaign_id)

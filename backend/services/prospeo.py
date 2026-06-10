@@ -40,9 +40,7 @@ class ProspeoClient:
             await _limiter.acquire()
             
             payload = {
-                "company": {
-                    "domain": domain
-                },
+                "company_domain": domain,
                 "person_job_title": settings.TARGET_JOB_TITLES,
                 # Additional filters could be added here
             }
@@ -50,7 +48,7 @@ class ProspeoClient:
             try:
                 # Real endpoint as per research
                 response = await client.post(
-                    f"{self.base_url}/search-person",
+                    f"{self.base_url}/company-search",
                     json=payload,
                     headers=self.headers
                 )
@@ -68,8 +66,8 @@ class ProspeoClient:
                 response.raise_for_status()
                 data = response.json()
                 
-                # Prospeo returns a list of results
-                prospects = data.get("response", {}).get("results", [])
+                # Prospeo returns a list of results in email_list
+                prospects = data.get("response", {}).get("email_list", [])
                 
                 # Filter out excluded titles
                 filtered_prospects = []

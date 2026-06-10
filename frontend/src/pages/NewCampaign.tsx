@@ -9,6 +9,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 export default function NewCampaign() {
   const navigate = useNavigate();
   const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [seedDomain, setSeedDomain] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   
   // Connect WebSocket if campaign is created
@@ -33,6 +34,7 @@ export default function NewCampaign() {
 
   const handleLaunch = async (domain: string) => {
     setIsLoading(true);
+    setSeedDomain(domain);
     try {
       const res = await api.post('/campaigns', { seed_domain: domain });
       setCampaignId(res.data.id);
@@ -86,7 +88,7 @@ export default function NewCampaign() {
           {wsData?.status === 'pending_approval' && (
             <SummaryModal
               metrics={wsData.metrics}
-              seedDomain={"Target Domain"} // Ideally fetched from campaign details, but acceptable for demo
+              seedDomain={seedDomain}
               onApprove={handleApprove}
               onCancel={handleCancel}
               isLoading={isLoading}

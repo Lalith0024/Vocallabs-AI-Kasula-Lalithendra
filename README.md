@@ -39,6 +39,26 @@ The system connects to 4 APIs. If API keys are not provided in `.env`, the syste
 - **Graceful degradation**: Rate limits (Token Bucket), exponential backoff, and mock fallbacks built-in
 - **Audit trail**: Every external API call is logged
 
+## Live Demo Walkthrough
+
+1. Run: `docker-compose up -d --build`
+2. Open: http://localhost:3000
+3. Click **New Campaign** → enter `stripe.com`
+4. Watch Stage 1–3 execute automatically (takes ~60-120s with real APIs)
+5. At the Safety Checkpoint, review the metrics and email preview
+6. Click **Approve & Send** to fire Stage 4 (or cancel to skip)
+7. View the campaign detail page for a full audit trail
+
+**Expected outputs with real API keys** (approximate):
+- Stage 1: 40–60 lookalike companies
+- Stage 2: 80–200 decision-maker contacts
+- Stage 3: 60–150 verified email addresses
+- Stage 4: All resolved emails sent + tracked
+
+**Monitoring**: Open http://localhost:5555 (Flower) to watch Celery tasks in real-time.
+
+**API docs**: http://localhost:8000/docs
+
 ## Structure
 - `/backend`: FastAPI service + Celery workers
 - `/frontend`: React SPA

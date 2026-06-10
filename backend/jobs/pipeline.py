@@ -5,6 +5,8 @@ import structlog
 from datetime import datetime
 from uuid import UUID
 
+from celery import Task, chain
+
 from celery_app import celery
 from database import AsyncSessionLocal
 from models.campaign import Campaign, CampaignStatus
@@ -48,8 +50,23 @@ async def _update_campaign_status(campaign_id: UUID, status: CampaignStatus, met
             
         await db.commit()
 
+
+class BasePipelineTask(Task):
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        """Called by Celery only when ALL retries are exhausted."""
+        campaign_id_str = args[0] if args else (kwargs.get('campaign_id_str') or args[-1])
+        # Handle both positional patterns in the chain
+        if isinstance(campaign_id_str, dict):  # chain passes previous result as first arg
+            campaign_id_str = args[1] if len(args) > 1 else kwargs.get('campaign_id_str')
+        if campaign_id_str:
+            sync_db_call(_update_campaign_status(
+                UUID(campaign_id_str),
+                CampaignStatus.FAILED,
+                error=f"Stage failed after {self.max_retries} retries: {str(exc)}"
+            ))
+
 # --- Stage 1: Ocean.io ---
-@celery.task(bind=True, max_retries=3)
+@celery.task(bind=True, max_retries=3, base=BasePipelineTask)
 def stage_1_ocean_io(self, campaign_id_str: str):
     """Find lookalike companies."""
     campaign_id = UUID(campaign_id_str)
@@ -102,15 +119,15 @@ def stage_1_ocean_io(self, campaign_id_str: str):
                 return {"campaign_id": str(campaign_id), "companies_found": companies_added}
         except Exception as e:
             logger.error("Stage 1 failed", error=str(e), exc_info=True)
-            if self.request.retries >= self.max_retries:
-                await _update_campaign_status(campaign_id, CampaignStatus.FAILED, error=f"Stage 1 failed: {str(e)}")
-            raise self.retry(exc=e, countdown=60)
+            # Just retry — don't touch the status here
+            # Celery will call on_failure only when all retries are exhausted
+            raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
                 
     return sync_db_call(_run())
 
 # --- Stage 2: Prospeo ---
-@celery.task(bind=True, max_retries=3)
-def stage_2_prospeo(self, stage_1_result, campaign_id_str: str):
+@celery.task(bind=True, max_retries=3, base=BasePipelineTask)
+def stage_2_prospeo(self, campaign_id_str: str):
     """Extract decision makers from companies."""
     campaign_id = UUID(campaign_id_str)
     
@@ -171,15 +188,15 @@ def stage_2_prospeo(self, stage_1_result, campaign_id_str: str):
                 return {"campaign_id": str(campaign_id), "contacts_found": contacts_added}
         except Exception as e:
             logger.error("Stage 2 failed", error=str(e), exc_info=True)
-            if self.request.retries >= self.max_retries:
-                await _update_campaign_status(campaign_id, CampaignStatus.FAILED, error=f"Stage 2 failed: {str(e)}")
-            raise self.retry(exc=e, countdown=60)
+            # Just retry — don't touch the status here
+            # Celery will call on_failure only when all retries are exhausted
+            raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
             
     return sync_db_call(_run())
 
 # --- Stage 3: Eazyreach ---
-@celery.task(bind=True, max_retries=3)
-def stage_3_eazyreach(self, stage_2_result, campaign_id_str: str):
+@celery.task(bind=True, max_retries=3, base=BasePipelineTask)
+def stage_3_eazyreach(self, campaign_id_str: str):
     """Resolve emails from LinkedIn URLs."""
     campaign_id = UUID(campaign_id_str)
     
@@ -249,15 +266,15 @@ def stage_3_eazyreach(self, stage_2_result, campaign_id_str: str):
                 return {"campaign_id": str(campaign_id), "emails_resolved": emails_resolved}
         except Exception as e:
             logger.error("Stage 3 failed", error=str(e), exc_info=True)
-            if self.request.retries >= self.max_retries:
-                await _update_campaign_status(campaign_id, CampaignStatus.FAILED, error=f"Stage 3 failed: {str(e)}")
-            raise self.retry(exc=e, countdown=60)
+            # Just retry — don't touch the status here
+            # Celery will call on_failure only when all retries are exhausted
+            raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
             
     return sync_db_call(_run())
 
 
 # --- Stage 4: Brevo ---
-@celery.task(bind=True, max_retries=3)
+@celery.task(bind=True, max_retries=3, base=BasePipelineTask)
 def stage_4_brevo(self, campaign_id_str: str):
     """Send personalized emails. Triggered manually after approval."""
     campaign_id = UUID(campaign_id_str)
@@ -347,9 +364,9 @@ def stage_4_brevo(self, campaign_id_str: str):
                 }
         except Exception as e:
             logger.error("Stage 4 failed", error=str(e), exc_info=True)
-            if self.request.retries >= self.max_retries:
-                await _update_campaign_status(campaign_id, CampaignStatus.FAILED, error=f"Stage 4 failed: {str(e)}")
-            raise self.retry(exc=e, countdown=60)
+            # Just retry — don't touch the status here
+            # Celery will call on_failure only when all retries are exhausted
+            raise self.retry(exc=e, countdown=60 * (self.request.retries + 1))
             
     return sync_db_call(_run())
 
@@ -357,15 +374,12 @@ def stage_4_brevo(self, campaign_id_str: str):
 @celery.task
 def execute_pipeline(campaign_id_str: str):
     """Kicks off the pipeline sequentially."""
-    # Using celery chord/chain to link stages
-    from celery import chain
-    
     # We pass campaign_id down the chain. The results of the previous task
     # are passed as the first argument to the next task in the chain automatically.
     workflow = chain(
-        stage_1_ocean_io.s(campaign_id_str),
-        stage_2_prospeo.s(campaign_id_str),
-        stage_3_eazyreach.s(campaign_id_str)
+        stage_1_ocean_io.si(campaign_id_str),
+        stage_2_prospeo.si(campaign_id_str),
+        stage_3_eazyreach.si(campaign_id_str)
         # Stage 4 is intentionally omitted because it requires user approval
     )
     

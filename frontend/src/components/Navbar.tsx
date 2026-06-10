@@ -1,9 +1,18 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Rocket, LayoutDashboard, PlusCircle } from 'lucide-react';
+import { Rocket, LayoutDashboard, PlusCircle, Activity } from 'lucide-react';
 import clsx from 'clsx';
+import api from '../services/api';
 
 export default function Navbar() {
   const location = useLocation();
+  const [isLiveMode, setIsLiveMode] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api.get('/health')
+      .then(res => setIsLiveMode(res.data.live_mode))
+      .catch(err => console.error("Health check failed", err));
+  }, []);
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -21,6 +30,17 @@ export default function Navbar() {
             <span className="text-xl font-bold bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
               OutreachAutomator
             </span>
+            {isLiveMode !== null && (
+              <div className={clsx(
+                "flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold ml-4 border",
+                isLiveMode 
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+              )}>
+                <Activity className="w-3 h-3" />
+                <span>{isLiveMode ? 'LIVE MODE' : 'MOCK MODE'}</span>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-8">

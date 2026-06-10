@@ -48,15 +48,13 @@ class OceanIOClient:
                 payload = {
                     "size": page_size,
                     "companiesFilters": {
+                        "similarTo": [seed_domain],
                         "primaryLocations": {
                             "includeCountries": ["us", "gb", "ca", "au"]
                         }
                     }
                 }
                 
-                # In a real scenario, we might use a dedicated lookalike endpoint
-                # or build a query based on the seed_domain.
-                # Following the updated research for v3 search:
                 if search_after:
                     payload["searchAfter"] = search_after
 

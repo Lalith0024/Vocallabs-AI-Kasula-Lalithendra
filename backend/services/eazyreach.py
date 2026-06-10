@@ -32,30 +32,32 @@ class EazyreachClient:
         return bool(re.match(pattern, email))
 
     async def resolve_email(self, linkedin_url: str, company_domain: str) -> Dict[str, Any]:
-        """Resolve a LinkedIn URL to a verified work email."""
-        
-        if not self.api_key:
-            return self._get_mock_data(linkedin_url, company_domain)
+        """Resolve a LinkedIn URL to a verified work email using Prospeo instead of EazyReach."""
+        logger.info(f"Bypassing Eazyreach and using Prospeo enrichment for {linkedin_url}")
+        return await self._prospeo_fallback(linkedin_url)
 
+    async def _prospeo_fallback(self, linkedin_url: str) -> dict:
+        """Use Prospeo's email enrichment as Stage 3 fallback."""
+        from config import get_settings
+        s = get_settings()
         async with httpx.AsyncClient(timeout=30.0) as client:
-            payload = {
-                "linkedin_url": linkedin_url,
-                "company_domain": company_domain
-            }
-
             try:
                 response = await client.post(
-                    f"{self.base_url}/email-finder/resolve",
-                    json=payload,
-                    headers=self.headers
+                    f"{s.PROSPEO_BASE_URL}/email-finder",
+                    json={"url": linkedin_url},
+                    headers={"X-KEY": s.PROSPEO_API_KEY}
                 )
-                
-                response.raise_for_status()
-                return response.json()
-                
-            except httpx.HTTPError as e:
-                logger.error("Eazyreach API request failed", error=str(e), url=linkedin_url)
-                return self._get_mock_data(linkedin_url, company_domain)
+                if response.status_code == 200:
+                    data = response.json()
+                    return {
+                        "status": "success",
+                        "email": data.get("email", ""),
+                        "verified": data.get("verification", {}).get("status") == "valid",
+                        "confidence": data.get("confidence", 0.0),
+                    }
+            except Exception as e:
+                logger.error("Prospeo fallback failed", error=str(e))
+        return self._get_mock_data(linkedin_url, "")
 
     def _get_mock_data(self, linkedin_url: str, company_domain: str) -> Dict[str, Any]:
         """Generate a realistic looking mock email."""
