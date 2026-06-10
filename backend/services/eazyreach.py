@@ -34,9 +34,9 @@ class EazyreachClient:
     async def resolve_email(self, linkedin_url: str, company_domain: str) -> Dict[str, Any]:
         """Resolve a LinkedIn URL to a verified work email using Prospeo instead of EazyReach."""
         logger.info(f"Bypassing Eazyreach and using Prospeo enrichment for {linkedin_url}")
-        return await self._prospeo_fallback(linkedin_url)
+        return await self._prospeo_fallback(linkedin_url, company_domain)
 
-    async def _prospeo_fallback(self, linkedin_url: str) -> dict:
+    async def _prospeo_fallback(self, linkedin_url: str, company_domain: str = "") -> dict:
         """Use Prospeo's email enrichment as Stage 3 fallback."""
         from config import get_settings
         s = get_settings()
@@ -57,17 +57,19 @@ class EazyreachClient:
                     }
             except Exception as e:
                 logger.error("Prospeo fallback failed", error=str(e))
-        return self._get_mock_data(linkedin_url, "")
+        return self._get_mock_data(linkedin_url, company_domain)
 
     def _get_mock_data(self, linkedin_url: str, company_domain: str) -> Dict[str, Any]:
         """Generate a realistic looking mock email."""
+        # Guard against empty domain — Bug 2 fix
+        domain = company_domain if company_domain else "example.com"
         # Extract name from linkedin url (very basic mock)
         parts = linkedin_url.split("/in/")
         if len(parts) > 1:
             name_part = parts[1].split("-")[0]
-            email = f"{name_part}@{company_domain}"
+            email = f"{name_part}@{domain}"
         else:
-            email = f"contact@{company_domain}"
+            email = f"contact@{domain}"
             
         return {
             "status": "success",

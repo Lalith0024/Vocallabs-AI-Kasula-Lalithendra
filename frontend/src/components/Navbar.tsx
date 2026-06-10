@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Rocket, LayoutDashboard, PlusCircle, Activity } from 'lucide-react';
+import { Zap, LayoutDashboard, PlusCircle, Activity, Wifi, WifiOff } from 'lucide-react';
 import clsx from 'clsx';
 import api from '../services/api';
 
@@ -11,7 +11,7 @@ export default function Navbar() {
   useEffect(() => {
     api.get('/health')
       .then(res => setIsLiveMode(res.data.live_mode))
-      .catch(err => console.error("Health check failed", err));
+      .catch(() => setIsLiveMode(false));
   }, []);
 
   const navItems = [
@@ -20,30 +20,36 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center space-x-3">
-            <div className="bg-brand-500/20 p-2 rounded-xl">
-              <Rocket className="h-6 w-6 text-brand-500" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
-              OutreachAutomator
-            </span>
+        <div className="flex justify-between h-14 items-center">
+          {/* Logo */}
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center group-hover:bg-gray-700 transition-colors">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-gray-900 text-sm tracking-tight">OutreachAutomator</span>
+            </Link>
+
+            {/* Mode badge */}
             {isLiveMode !== null && (
               <div className={clsx(
-                "flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold ml-4 border",
-                isLiveMode 
-                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all",
+                isLiveMode
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-amber-50 text-amber-700 border-amber-200"
               )}>
-                <Activity className="w-3 h-3" />
-                <span>{isLiveMode ? 'LIVE MODE' : 'MOCK MODE'}</span>
+                {isLiveMode
+                  ? <><Wifi className="w-3 h-3" /> LIVE</>
+                  : <><WifiOff className="w-3 h-3" /> MOCK</>
+                }
               </div>
             )}
           </div>
-          
-          <div className="flex items-center space-x-8">
+
+          {/* Nav links */}
+          <div className="flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -52,10 +58,10 @@ export default function Navbar() {
                   key={item.path}
                   to={item.path}
                   className={clsx(
-                    "flex items-center space-x-2 text-sm font-medium transition-colors",
-                    isActive 
-                      ? "text-brand-400" 
-                      : "text-slate-400 hover:text-slate-200"
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
+                    isActive
+                      ? "bg-gray-900 text-white"
+                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   )}
                 >
                   <Icon className="h-4 w-4" />

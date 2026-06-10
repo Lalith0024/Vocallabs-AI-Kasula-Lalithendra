@@ -5,24 +5,22 @@ import PipelineStatus from '../components/PipelineStatus';
 import SummaryModal from '../components/SummaryModal';
 import api from '../services/api';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { AlertCircle } from 'lucide-react';
 
 export default function NewCampaign() {
   const navigate = useNavigate();
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [seedDomain, setSeedDomain] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Connect WebSocket if campaign is created
-  const wsData = useWebSocket(campaignId);
 
+  const wsData = useWebSocket(campaignId);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // If a status update indicates the campaign finished, redirect to the detail page
   useEffect(() => {
     if (wsData?.status === 'completed') {
       redirectTimerRef.current = setTimeout(() => {
         navigate(`/campaigns/${campaignId}`);
-      }, 3000); // Wait 3s so user sees completion state before redirect
+      }, 2500);
     }
     return () => {
       if (redirectTimerRef.current !== null) {
@@ -40,7 +38,6 @@ export default function NewCampaign() {
       setCampaignId(res.data.id);
     } catch (err) {
       console.error(err);
-      // Handle error UI if needed
     } finally {
       setIsLoading(false);
     }
@@ -58,43 +55,59 @@ export default function NewCampaign() {
     }
   };
 
-  const handleCancel = () => {
-    navigate('/');
-  };
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {!campaignId ? (
         <DomainInput onSubmit={handleLaunch} isLoading={isLoading} />
       ) : (
-        <div>
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-slate-100">Pipeline Execution</h2>
-            <p className="text-slate-400 mt-2 font-mono">ID: {campaignId}</p>
+        <div className="animate-fade-in">
+          {/* Campaign header */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center gap-2 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5 mb-4">
+              <span className="font-mono">{campaignId}</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Running Pipeline
+            </h2>
+            <p className="text-gray-500 mt-1 text-sm">
+              Seed domain: <span className="font-semibold text-gray-700">{seedDomain}</span>
+            </p>
           </div>
-          
-          <PipelineStatus 
-            status={wsData?.status || 'pending'} 
-            metrics={wsData?.metrics || {}} 
+
+          <PipelineStatus
+            status={wsData?.status || 'pending'}
+            metrics={wsData?.metrics || {}}
           />
-          
+
+          {/* Error state */}
           {wsData?.error_message && (
-            <div className="max-w-3xl mx-auto mt-8 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-center">
-              <span className="font-bold">Error:</span> {wsData.error_message}
+            <div className="mt-6 flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4 animate-slide-up">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-700">Pipeline Failed</p>
+                <p className="text-sm text-red-600 mt-0.5">{wsData.error_message}</p>
+              </div>
             </div>
           )}
 
-          {wsData?.status === 'pending_approval' && (
-            <SummaryModal
-              metrics={wsData.metrics}
-              seedDomain={seedDomain}
-              onApprove={handleApprove}
-              onCancel={handleCancel}
-              isLoading={isLoading}
-            />
+          {/* Completion redirect notice */}
+          {wsData?.status === 'completed' && (
+            <div className="mt-6 text-center animate-slide-up">
+              <p className="text-sm text-gray-500">Redirecting to campaign details…</p>
+            </div>
           )}
         </div>
+      )}
+
+      {/* Safety checkpoint modal */}
+      {wsData?.status === 'pending_approval' && (
+        <SummaryModal
+          metrics={wsData.metrics}
+          seedDomain={seedDomain}
+          onApprove={handleApprove}
+          onCancel={() => navigate('/')}
+          isLoading={isLoading}
+        />
       )}
     </div>
   );

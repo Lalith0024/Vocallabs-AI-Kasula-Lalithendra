@@ -9,9 +9,9 @@ function App() {
   return (
     <ToastProvider>
       <BrowserRouter>
-        <div className="min-h-screen bg-slate-900 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.15),rgba(255,255,255,0))]">
+        <div className="min-h-screen bg-gray-50">
           <Navbar />
-          <main>
+          <main className="animate-fade-in">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/campaigns/new" element={<NewCampaign />} />

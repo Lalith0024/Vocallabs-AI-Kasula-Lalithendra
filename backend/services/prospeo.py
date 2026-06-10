@@ -34,55 +34,51 @@ class ProspeoClient:
             logger.warning("Prospeo API key not found. Using mock data.", domain=domain)
             return self._get_mock_data(domain)
 
-        all_prospects = []
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            await _limiter.acquire()
-            
-            payload = {
-                "company_domain": domain,
-                "person_job_title": settings.TARGET_JOB_TITLES,
-                # Additional filters could be added here
-            }
-
-            try:
-                # Real endpoint as per research
-                response = await client.post(
-                    f"{self.base_url}/company-search",
-                    json=payload,
-                    headers=self.headers
-                )
-                
-                if response.status_code == 404:
-                    logger.info("Domain not found in Prospeo", domain=domain)
-                    return []
+        MAX_RETRIES = 3
+        for attempt in range(MAX_RETRIES):
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                await _limiter.acquire()
+                payload = {
+                    "company_domain": domain,
+                    "person_job_title": settings.TARGET_JOB_TITLES,
+                }
+                try:
+                    response = await client.post(
+                        f"{self.base_url}/company-search",
+                        json=payload,
+                        headers=self.headers
+                    )
                     
-                if response.status_code == 429:
-                    logger.warning("Prospeo rate limit hit. Sleeping...")
-                    await asyncio.sleep(60)
-                    # We'll rely on the Celery task retry logic for 429s instead of deep nesting here
+                    if response.status_code == 404:
+                        logger.info("Domain not found in Prospeo", domain=domain)
+                        return []
+                        
+                    if response.status_code == 429:
+                        wait = 60 * (attempt + 1)
+                        logger.warning(f"Prospeo rate limit hit. Sleeping {wait}s (attempt {attempt + 1})")
+                        await asyncio.sleep(wait)
+                        continue  # re-issue the POST — Bug 4 fix
+                    
                     response.raise_for_status()
+                    data = response.json()
                     
-                response.raise_for_status()
-                data = response.json()
-                
-                # Prospeo returns a list of results in email_list
-                prospects = data.get("response", {}).get("email_list", [])
-                
-                # Filter out excluded titles
-                filtered_prospects = []
-                for p in prospects:
-                    title = p.get("job_title", "")
-                    if any(excl.lower() in title.lower() for excl in settings.EXCLUDED_TITLE_KEYWORDS):
-                        continue
-                    filtered_prospects.append(p)
+                    # Prospeo returns a list of results in email_list
+                    prospects = data.get("response", {}).get("email_list", [])
                     
-                return filtered_prospects
-                
-            except httpx.HTTPError as e:
-                logger.error("Prospeo API request failed", error=str(e), domain=domain)
-                # Fallback to mock data on error for demo purposes
-                return self._get_mock_data(domain)
+                    # Filter out excluded titles
+                    return [
+                        p for p in prospects
+                        if not any(excl.lower() in p.get("job_title", "").lower()
+                                   for excl in settings.EXCLUDED_TITLE_KEYWORDS)
+                    ]
+                    
+                except httpx.HTTPError as e:
+                    if attempt == MAX_RETRIES - 1:
+                        logger.error("Prospeo API request failed", error=str(e), domain=domain)
+                        return self._get_mock_data(domain)
+                    await asyncio.sleep(10)
+        
+        return self._get_mock_data(domain)
 
     def _get_mock_data(self, domain: str) -> List[Dict[str, Any]]:
         """Return mock decision makers."""

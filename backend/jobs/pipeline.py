@@ -54,7 +54,11 @@ async def _update_campaign_status(campaign_id: UUID, status: CampaignStatus, met
 class BasePipelineTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """Called by Celery only when ALL retries are exhausted."""
-        campaign_id_str = args[0] if args else (kwargs.get('campaign_id_str') or args[-1])
+        # Bug 1 fix: args[-1] on empty tuple raises IndexError
+        campaign_id_str = args[0] if args else kwargs.get('campaign_id_str')
+        if not campaign_id_str:
+            logger.error("on_failure: could not determine campaign_id_str", task_id=task_id)
+            return
         # Handle both positional patterns in the chain
         if isinstance(campaign_id_str, dict):  # chain passes previous result as first arg
             campaign_id_str = args[1] if len(args) > 1 else kwargs.get('campaign_id_str')
@@ -236,7 +240,7 @@ def stage_3_eazyreach(self, campaign_id_str: str):
                         email_addr = res.get("email")
                         confidence = res.get("confidence", 0.0)
                         
-                        if email_addr and confidence >= 0.7:
+                        if email_addr and confidence >= 0.7 and client.is_valid_email(email_addr):
                             if email_addr in existing_emails:
                                 continue
                             email_record = EmailRecord(
@@ -292,12 +296,13 @@ def stage_4_brevo(self, campaign_id_str: str):
                     return {"error": "Campaign not found"}
                 template = campaign.email_template
                 
-                # Get pending emails
+                # Get pending emails — cap at 20 to avoid API billing overruns
                 result = await db.execute(
                     select(EmailRecord)
                     .where(EmailRecord.campaign_id == campaign_id)
                     .where(EmailRecord.status == EmailStatus.PENDING.value)
                     .options(selectinload(EmailRecord.contact).selectinload(Contact.company))
+                    .limit(20)
                 )
                 emails = result.scalars().all()
                 

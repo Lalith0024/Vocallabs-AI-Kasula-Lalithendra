@@ -6,6 +6,10 @@ Uses pydantic-settings for validation and type coercion.
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
+from pathlib import Path
+
+# Always load from project root .env, regardless of CWD
+_ENV_FILE = Path(__file__).parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -77,9 +81,10 @@ class Settings(BaseSettings):
     ]
 
     class Config:
-        env_file = ".env"
+        env_file = str(_ENV_FILE)
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"
 
 
 @lru_cache()

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CampaignMetrics } from '../types';
-import { Send, X, ChevronDown, ChevronUp, Mail } from 'lucide-react';
+import { Send, X, ChevronDown, ChevronUp, Mail, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 interface SummaryModalProps {
   metrics: CampaignMetrics;
@@ -12,86 +12,110 @@ interface SummaryModalProps {
 
 export default function SummaryModal({ metrics, seedDomain, onApprove, onCancel, isLoading }: SummaryModalProps) {
   const [showPreview, setShowPreview] = useState(false);
-  const successRate = metrics.contacts_found 
-    ? Math.round(((metrics.emails_resolved || 0) / metrics.contacts_found) * 100) 
+
+  const emailCount = metrics.emails_resolved || 0;
+  const cappedCount = Math.min(emailCount, 20);
+  const successRate = metrics.contacts_found
+    ? Math.round((emailCount / metrics.contacts_found) * 100)
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 shadow-2xl rounded-3xl max-w-2xl w-full overflow-hidden animate-slide-up">
-        
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50">
-          <h2 className="text-xl font-bold text-slate-100">Safety Checkpoint</h2>
-          <button onClick={onCancel} className="text-slate-400 hover:text-slate-200 transition-colors">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-        
-        <div className="p-8">
-          <p className="text-slate-300 mb-8">
-            Pipeline data extraction is complete for <span className="font-semibold text-white">{seedDomain}</span>. 
-            Review the results before initiating the email sequence.
-          </p>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-modal w-full max-w-lg overflow-hidden animate-slide-up">
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-              <span className="block text-3xl font-bold text-slate-100 mb-1">{metrics.companies_found || 0}</span>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">Companies</span>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 text-amber-600" />
             </div>
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-              <span className="block text-3xl font-bold text-slate-100 mb-1">{metrics.contacts_found || 0}</span>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">Contacts</span>
-            </div>
-            <div className="bg-brand-500/10 border border-brand-500/20 rounded-xl p-4 text-center">
-              <span className="block text-3xl font-bold text-brand-400 mb-1">{metrics.emails_resolved || 0}</span>
-              <span className="text-xs text-brand-400/80 uppercase tracking-wider">Emails Found</span>
-            </div>
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-              <span className="block text-3xl font-bold text-slate-100 mb-1">{successRate}%</span>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">Match Rate</span>
+            <div>
+              <h2 className="font-bold text-gray-900 text-sm">Safety Checkpoint</h2>
+              <p className="text-xs text-gray-400">Review before sending</p>
             </div>
           </div>
+          <button
+            onClick={onCancel}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-          <div className="mb-8 border border-slate-700/50 rounded-xl overflow-hidden">
-            <button 
-              onClick={() => setShowPreview(!showPreview)}
-              className="w-full bg-slate-800/50 p-4 flex items-center justify-between text-slate-300 hover:bg-slate-800 transition-colors"
-            >
-              <div className="flex items-center space-x-2">
-                <Mail className="w-5 h-5 text-brand-400" />
-                <span className="font-medium">View Email Preview</span>
+        {/* Body */}
+        <div className="px-6 py-5">
+          <p className="text-sm text-gray-600 mb-5">
+            Pipeline extraction complete for <span className="font-semibold text-gray-900">{seedDomain}</span>.
+            {cappedCount < emailCount && (
+              <span className="text-amber-600"> Capped at 20 emails to prevent billing overruns.</span>
+            )}
+          </p>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-4 gap-3 mb-5">
+            {[
+              { label: 'Companies', value: metrics.companies_found || 0, color: 'text-gray-900' },
+              { label: 'Contacts',  value: metrics.contacts_found  || 0, color: 'text-gray-900' },
+              { label: 'Emails',    value: cappedCount,                  color: 'text-blue-600'  },
+              { label: 'Match',     value: `${successRate}%`,            color: 'text-emerald-600' },
+            ].map(s => (
+              <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
+                <div className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5 font-medium">{s.label}</div>
               </div>
-              {showPreview ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            ))}
+          </div>
+
+          {/* 20 email cap notice */}
+          {emailCount > 20 && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                <span className="font-semibold">{emailCount} emails found</span>, but only the first 20 will be sent to stay within free API limits.
+              </p>
+            </div>
+          )}
+
+          {/* Email preview accordion */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden mb-5">
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-gray-400" />
+                Email Preview
+              </div>
+              {showPreview ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
             </button>
-            
             {showPreview && (
-              <div className="p-4 bg-slate-900 border-t border-slate-700/50 text-sm text-slate-400">
-                <p className="mb-2"><span className="text-slate-500">Subject:</span> Partnership Opportunity - {'{company_name}'} & {'{seed_domain}'}</p>
-                <div className="p-4 bg-slate-950 rounded-lg border border-slate-800 font-serif leading-relaxed">
+              <div className="px-4 py-4 bg-white border-t border-gray-100 text-xs text-gray-600 space-y-2 animate-slide-down">
+                <p><span className="text-gray-400">Subject:</span> Partnership Opportunity — {'{company_name}'} &amp; {seedDomain}</p>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2 leading-relaxed text-gray-700 border border-gray-100">
                   <p>Hi {'{first_name}'},</p>
-                  <p className="mt-4">I came across {'{company_name}'} while researching companies in the {'{industry}'} space — impressive work you're doing there.</p>
-                  <p className="mt-4">I'm reaching out because we help companies like yours streamline recurring costs and subscription management at scale...</p>
-                  <p className="mt-4 text-slate-500 italic">(Preview truncated. Dynamic variables will be injected before sending.)</p>
+                  <p>I came across {'{company_name}'} while researching companies in the {'{industry}'} space — impressive work you're doing there.</p>
+                  <p>I'm reaching out because we help companies like yours streamline recurring costs…</p>
+                  <p className="text-gray-400 italic">(Dynamic variables will be injected before sending.)</p>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="flex space-x-4">
-            <button
-              onClick={onCancel}
-              disabled={isLoading}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 rounded-xl font-medium transition-colors"
-            >
+          {/* Actions */}
+          <div className="flex gap-3">
+            <button onClick={onCancel} disabled={isLoading} className="btn-secondary flex-1">
               Cancel
             </button>
             <button
               onClick={onApprove}
               disabled={isLoading}
-              className="flex-[2] bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-medium transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="btn-success flex-[2] flex items-center justify-center gap-2"
             >
-              <span>{isLoading ? 'Sending...' : `Approve & Send ${metrics.emails_resolved || 0} Emails`}</span>
-              {!isLoading && <Send className="w-4 h-4" />}
+              {isLoading ? (
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Sending…</>
+              ) : (
+                <><Send className="w-4 h-4" /> Approve &amp; Send {cappedCount} Emails</>
+              )}
             </button>
           </div>
         </div>

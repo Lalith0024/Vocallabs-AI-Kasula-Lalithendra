@@ -12,7 +12,7 @@ export default function CampaignDetail() {
     if (!campaign) return;
     if (campaign.status !== 'completed' && campaign.status !== 'failed') {
       const interval = setInterval(() => {
-        refetch();
+        refetch(false); // Bug 5 fix: don't show spinner on background polls
       }, 3000);
       return () => clearInterval(interval);
     }

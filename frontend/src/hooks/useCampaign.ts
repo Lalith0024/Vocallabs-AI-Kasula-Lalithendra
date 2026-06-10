@@ -9,10 +9,11 @@ export function useCampaign(id: string | undefined) {
   const [emails, setEmails] = useState<EmailRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCampaignData = useCallback(async () => {
+  // Bug 5 fix: isInitialLoad param prevents spinner on every 3s poll
+  const fetchCampaignData = useCallback(async (isInitialLoad = true) => {
     if (!id) return;
     try {
-      setLoading(true);
+      if (isInitialLoad) setLoading(true);
       const [campRes, compRes, contRes, emailRes] = await Promise.all([
         api.get(`/campaigns/${id}`),
         api.get(`/campaigns/${id}/companies`),
@@ -26,12 +27,12 @@ export function useCampaign(id: string | undefined) {
     } catch (err) {
       console.error("Failed to fetch campaign data", err);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    fetchCampaignData();
+    fetchCampaignData(true);
   }, [fetchCampaignData]);
 
   return { campaign, companies, contacts, emails, loading, refetch: fetchCampaignData };

@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { ArrowRight, Globe } from 'lucide-react';
+import { ArrowRight, Globe, Zap } from 'lucide-react';
 import clsx from 'clsx';
 
 interface DomainInputProps {
@@ -13,54 +13,106 @@ export default function DomainInput({ onSubmit, isLoading }: DomainInputProps) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!domain) {
+    if (!domain.trim()) {
       setError('Please enter a domain');
       return;
     }
-    // Basic domain regex
     const regex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-    if (!regex.test(domain)) {
-      setError('Please enter a valid domain (e.g., acme.com)');
+    if (!regex.test(domain.trim())) {
+      setError('Please enter a valid domain (e.g., shopify.com)');
       return;
     }
     setError('');
-    onSubmit(domain);
+    onSubmit(domain.trim().toLowerCase());
   };
 
-  return (
-    <div className="glass-panel p-8 rounded-3xl max-w-2xl mx-auto text-center mt-12">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-500/20 text-brand-400 mb-6">
-        <Globe className="w-8 h-8" />
-      </div>
-      <h2 className="text-3xl font-bold text-slate-100 mb-4">Start New Campaign</h2>
-      <p className="text-slate-400 mb-8 max-w-md mx-auto">
-        Enter a seed company domain. Our AI will automatically find lookalikes, extract decision-makers, resolve verified emails, and prepare outreach.
-      </p>
+  const examples = ['stripe.com', 'notion.so', 'linear.app', 'vercel.com'];
 
-      <form onSubmit={handleSubmit} className="relative max-w-lg mx-auto">
-        <div className="relative flex items-center">
-          <input
-            type="text"
-            value={domain}
-            onChange={(e) => { setDomain(e.target.value); setError(''); }}
-            placeholder="e.g. shopify.com"
-            disabled={isLoading}
-            className={clsx(
-              "w-full bg-slate-900/50 border rounded-xl py-4 pl-6 pr-32 text-lg focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all text-slate-100 placeholder-slate-500",
-              error ? "border-rose-500" : "border-slate-700"
-            )}
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="absolute right-2 top-2 bottom-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg px-6 font-medium transition-colors flex items-center space-x-2 disabled:opacity-50"
-          >
-            <span>{isLoading ? 'Starting...' : 'Launch'}</span>
-            {!isLoading && <ArrowRight className="w-4 h-4" />}
-          </button>
+  return (
+    <div className="max-w-2xl mx-auto pt-12 animate-slide-up">
+      {/* Hero icon */}
+      <div className="flex justify-center mb-7">
+        <div className="w-14 h-14 bg-gray-900 rounded-2xl flex items-center justify-center shadow-lg">
+          <Zap className="w-7 h-7 text-white" />
         </div>
-        {error && <p className="text-rose-400 text-sm mt-2 text-left pl-4">{error}</p>}
-      </form>
+      </div>
+
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">Start a New Campaign</h2>
+        <p className="text-gray-500 max-w-md mx-auto leading-relaxed">
+          Enter a seed company domain. Our AI finds lookalikes, extracts decision-makers,
+          resolves verified emails, and prepares a personalised outreach sequence.
+        </p>
+      </div>
+
+      <div className="card p-6 sm:p-8">
+        <form onSubmit={handleSubmit}>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Globe className="inline w-4 h-4 mr-1.5 text-gray-400" />
+            Seed Domain
+          </label>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={domain}
+              onChange={e => { setDomain(e.target.value); setError(''); }}
+              placeholder="e.g. shopify.com"
+              disabled={isLoading}
+              className={clsx(
+                "input-field flex-1",
+                error && "!border-red-300 focus:!ring-red-200 focus:!border-red-400"
+              )}
+            />
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn-primary flex items-center gap-2 whitespace-nowrap"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Starting…
+                </>
+              ) : (
+                <>
+                  Launch
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+          {error && (
+            <p className="text-red-500 text-sm mt-2 animate-slide-down">{error}</p>
+          )}
+        </form>
+
+        {/* Example domains */}
+        <div className="mt-5 pt-5 border-t border-gray-100">
+          <p className="text-xs text-gray-400 mb-3">Try an example domain:</p>
+          <div className="flex flex-wrap gap-2">
+            {examples.map(ex => (
+              <button
+                key={ex}
+                type="button"
+                onClick={() => { setDomain(ex); setError(''); }}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 rounded-lg transition-all duration-150"
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Info pills */}
+      <div className="flex flex-wrap justify-center gap-3 mt-6">
+        {['Ocean.io lookalikes', 'Prospeo contacts', 'Email verification', 'Brevo delivery'].map((step, i) => (
+          <div key={step} className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-500 font-semibold flex items-center justify-center text-[10px]">{i + 1}</span>
+            {step}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
