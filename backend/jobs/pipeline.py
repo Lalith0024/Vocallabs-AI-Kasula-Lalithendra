@@ -2,8 +2,9 @@
 
 import asyncio
 import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
+from typing import Optional, Dict, Any
 
 from database import AsyncSessionLocal
 from models.campaign import Campaign, CampaignStatus
@@ -25,8 +26,8 @@ settings = get_settings()
 async def _update_campaign_status(
     campaign_id: UUID,
     status: CampaignStatus,
-    metrics_update: dict = None,
-    error: str = None
+    metrics_update: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None
 ):
     """Update campaign status in a fresh DB session."""
     async with AsyncSessionLocal() as db:
@@ -34,20 +35,20 @@ async def _update_campaign_status(
         if not campaign:
             return
 
-        campaign.status = status.value
+        campaign.status = status.value  # type: ignore
 
         if status == CampaignStatus.RUNNING:
-            campaign.started_at = datetime.utcnow()
+            campaign.started_at = datetime.now(timezone.utc)  # type: ignore
         elif status in (CampaignStatus.COMPLETED, CampaignStatus.FAILED):
-            campaign.completed_at = datetime.utcnow()
+            campaign.completed_at = datetime.now(timezone.utc)  # type: ignore
 
         if error:
-            campaign.error_message = error
+            campaign.error_message = error  # type: ignore
 
         if metrics_update:
-            current_metrics = dict(campaign.metrics or {})
+            current_metrics = dict(campaign.metrics or {})  # type: ignore
             current_metrics.update(metrics_update)
-            campaign.metrics = current_metrics
+            campaign.metrics = current_metrics  # type: ignore
 
         await db.commit()
 
@@ -65,7 +66,7 @@ async def _stage_1_ocean_io(campaign_id: UUID) -> int:
             raise ValueError("Campaign not found")
 
         client = OceanIOClient(campaign_id=campaign_id)
-        lookalikes = await client.search_lookalikes(campaign.seed_domain)
+        lookalikes = await client.search_lookalikes(str(campaign.seed_domain))
 
         # Deduplicate
         existing_res = await db.execute(
@@ -124,7 +125,7 @@ async def _stage_2_prospeo(campaign_id: UUID) -> int:
 
         for company in companies:
             try:
-                prospects = await client.search_prospects(company.domain)
+                prospects = await client.search_prospects(str(company.domain))
                 for p in prospects:
                     linkedin_url = p.get("linkedin_url")
                     if linkedin_url and linkedin_url in existing_urls:
@@ -186,7 +187,7 @@ async def _stage_3_eazyreach(campaign_id: UUID) -> int:
                 continue
             try:
                 res = await client.resolve_email(
-                    contact.linkedin_url, contact.company.domain
+                    str(contact.linkedin_url), str(contact.company.domain)
                 )
                 email_addr = res.get("email", "")
                 confidence = res.get("confidence", 0.0)
@@ -272,7 +273,7 @@ async def stage_4_brevo(campaign_id_str: str):
                 "seed_domain": campaign.seed_domain,
             }
 
-            html_content = generate_personalized_email(template, context)
+            html_content = generate_personalized_email(str(template), context)
             subject = f"Partnership Opportunity - {context['company_name']} & {campaign.seed_domain}"
 
             payload = {
@@ -292,9 +293,9 @@ async def stage_4_brevo(campaign_id_str: str):
 
             try:
                 res = await client.send_email(payload)
-                email.brevo_message_id = res.get("messageId")
-                email.status = EmailStatus.SENT.value
-                email.sent_at = datetime.utcnow()
+                email.brevo_message_id = res.get("messageId")  # type: ignore
+                email.status = EmailStatus.SENT.value  # type: ignore
+                email.sent_at = datetime.now(timezone.utc)  # type: ignore
                 emails_sent += 1
             except Exception as e:
                 logger.error(
@@ -302,8 +303,8 @@ async def stage_4_brevo(campaign_id_str: str):
                     to=email.email_address,
                     error=str(e),
                 )
-                email.status = EmailStatus.FAILED.value
-                email.error_message = str(e)
+                email.status = EmailStatus.FAILED.value  # type: ignore
+                email.error_message = str(e)  # type: ignore
                 emails_failed += 1
 
         await db.commit()

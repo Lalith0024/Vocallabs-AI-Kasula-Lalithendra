@@ -3,5 +3,6 @@
   "venv": "venv",
   "pythonVersion": "3.9",
   "pythonPath": "/Users/kasulalalithendra/Desktop/SubSpace_assignment/backend/venv/bin/python",
+  "extraPaths": ["backend"],
   "exclude": ["**/node_modules/**", "**/__pycache__/**"]
 }

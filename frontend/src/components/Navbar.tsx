@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Zap, LayoutDashboard, PlusCircle, Wifi, WifiOff } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Wifi, WifiOff } from 'lucide-react';
 import clsx from 'clsx';
 import api from '../services/api';
 
