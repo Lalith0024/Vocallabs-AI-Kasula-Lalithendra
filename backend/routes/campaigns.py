@@ -63,9 +63,9 @@ async def create_campaign(campaign_in: CampaignCreate, db: AsyncSession = Depend
     await db.commit()
     await db.refresh(campaign)
     
-    # Trigger Celery pipeline
-    execute_pipeline.delay(str(campaign.id))
-    
+    # Trigger pipeline as async background task in FastAPI's event loop
+    asyncio.create_task(execute_pipeline(str(campaign.id)))
+
     return campaign
 
 @router.get("/", response_model=List[CampaignResponse])
@@ -103,12 +103,12 @@ async def approve_campaign_send(campaign_id: UUID, db: AsyncSession = Depends(ge
             detail=f"Campaign is in status {campaign.status}, expected {CampaignStatus.PENDING_APPROVAL.value}"
         )
         
-    # Trigger Stage 4
-    stage_4_brevo.delay(str(campaign_id))
-    
+    # Run Stage 4 as async background task
+    asyncio.create_task(stage_4_brevo(str(campaign_id)))
+
     campaign.status = CampaignStatus.STAGE_4.value
     await db.commit()
-    
+
     return {"status": "sending_initiated"}
 
 # Sub-resources for detail view

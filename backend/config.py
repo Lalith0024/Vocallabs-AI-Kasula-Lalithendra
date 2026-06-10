@@ -24,12 +24,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./coldoutreach.db"
     DATABASE_URL_SYNC: str = "sqlite:///./coldoutreach.db"
 
-    # --- Redis ---
-    REDIS_URL: str = "redis://localhost:6379/0"
-
-    # --- Celery ---
-    CELERY_BROKER_URL: str = "sqla+sqlite:///./celery_broker.db"
-    CELERY_RESULT_BACKEND: str = "db+sqlite:///./celery_results.db"
 
     # --- API Keys ---
     OCEAN_IO_API_KEY: str = ""

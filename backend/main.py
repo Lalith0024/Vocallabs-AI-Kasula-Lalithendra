@@ -31,8 +31,6 @@ async def lifespan(app: FastAPI):
         warnings.append("OCEAN_IO_API_KEY not set — Stage 1 will use mock data")
     if not settings.PROSPEO_API_KEY:
         warnings.append("PROSPEO_API_KEY not set — Stage 2 will use mock data")
-    if not settings.EAZYREACH_API_KEY:
-        warnings.append("EAZYREACH_API_KEY not set — Stage 3 will use mock data")
     if not settings.BREVO_API_KEY:
         warnings.append("BREVO_API_KEY not set — Stage 4 will use mock data")
     if settings.SENDER_EMAIL == "outreach@yourdomain.com":
